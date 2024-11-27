@@ -1,6 +1,6 @@
-# concrexit-facedetection-lambda
+# concrexit-zipper
 
-An AWS Lambda function that extracts face encodings for [svthalia/concrexit](https://github.com/svthalia/concrexit).
+An AWS Lambda function that creates a zip of pictures for photo albums [svthalia/concrexit](https://github.com/svthalia/concrexit).
 
 ## Usage
 
@@ -21,32 +21,25 @@ From python, this can be done with [`boto3`](https://boto3.amazonaws.com/v1/docu
 }
 ```
 
-The function expects a payload as follows (at least one source, no trailing `/` in `api_url`):
+The function expects a payload as follows (at least one source):
 
 ```json
 {
-  "api_url": "https://thalia.nu",
-  "sources": [
-    {
-      "pk": 1,
-      "type": "'photo' or 'reference'",
-      "photo_url": "url to download photo file from",
-      "token": "base64 token for authentication",
-    },
-    ...
-  ]
+    "api_url": "https://thalia.nu",
+    "upload_url": "the signed url to upload the zip file",
+    "token": "base64 token for authentication",
+    "sources": [
+        "any amount of urls to download photo file from",
+        ...
+    ]
 }
 ```
 
-If everything goes right, for each source, the function will POST to e.g. `https://thalia.nu/api/facedetection/encodings/photo/1/` with body (0 or more encodings):
+If everything goes right, the function will POST a zip file to the `upload_url` sent to the lambda. The function returns a response with statuscode 200 containing:
     
 ```json
 {
-  "token": "base64 token for authentication",
-  "encodings": [
-    [<128 floats>],
-    ...
-  ]
+    "message": "Images zipped and uploaded"
 }
 ```
 
@@ -73,28 +66,15 @@ Terraform will output the ARN of the function. The idea is that concrexit stagin
 
 These ARNs need to be passed as settings and to Terraform in `[svthalia/concrexit](https://github.com/svthalia/concrexit) to give the servers permission to invoke the functions, and to tell concrexit which function to use. The ARN does not change when the function is updated, so this only needs to be done once.
 
-## Development
-
-As described on https://docs.aws.amazon.com/lambda/latest/dg/images-test.html#images-test-AWSbase, you can test a Lambda function container locally. 
-
-For example:
-```sh
-poetry export -o requirements.txt
-docker build -t concrexit-face-detection-lambda . 
-docker run -p 9000:8080 concrexit-face-detection-lambda
-```
-
 Then, you can invoke the function with curl:
 ```sh
-curl -XPOST "http://localhost:9000/2015-03-31/functions/function/invocations" -d '{
-    "api_url": "http://localhost:8000",
+curl -XPOST "http://localhost:8000/" -d '{
+    "api_url": "https://thalia.nu",
+    "upload_url": "https://thalia.nu/files/aaaaa.zip",
+    "token": "123abc",
     "sources": [
-        {
-        "pk": 1,
-        "type": "photo",
-        "photo_url": "https://picsum.photos/id/453/1024/665",
-        "token": "123abc"
-        }
+        "any amount of urls to download photo file from",
+        ...
     ]
-}'
+}
 ```
